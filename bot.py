@@ -21,7 +21,9 @@ from telegram.ext import (
 # НАСТРОЙКИ
 # ==========================
 
-TOKEN = "ВСТАВЬТЕ_СЮДА_ТОКЕН"
+import os
+
+TOKEN = os.getenv("BOT_TOKEN")
 
 USERS_FILE = "users.json"
 
