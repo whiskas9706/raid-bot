@@ -268,9 +268,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "Привет!\n\n"
-        "/рейд - сбор на рейд\n"
-        "/рейдят - нужна помощь\n"
-        "/мемасик - случайный мем"
+        "/raid - сбор на рейд\n"
+        "/reidet - нужна помощь\n"
+        "/memas - случайный мем"
     )
 
 
@@ -283,9 +283,9 @@ def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("рейд", raid))
-    app.add_handler(CommandHandler("рейдят", raided))
-    app.add_handler(CommandHandler("мемасик", meme))
+    app.add_handler(CommandHandler("raid", raid))
+    app.add_handler(CommandHandler("reidet", raided))
+    app.add_handler(CommandHandler("memas", meme))
 
     app.add_handler(
         CallbackQueryHandler(button_handler)
