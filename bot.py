@@ -280,11 +280,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).updater(None).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("raid", raid))
-    app.add_handler(CommandHandler("reidet", raided))
+    app.add_handler(CommandHandler("reided", raided))
     app.add_handler(CommandHandler("memas", meme))
 
     app.add_handler(
@@ -298,10 +298,20 @@ def main():
         )
     )
 
-    print("Бот запущен!")
+    port = int(os.environ.get("PORT", 8443))
+    webhook_url = os.environ.get("WEBHOOK_URL", "")
 
-    app.run_polling()
-
+    if webhook_url:
+        print("Бот запущен (вебхук)!")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=TOKEN,
+            webhook_url=f"{webhook_url}/{TOKEN}",
+        )
+    else:
+        print("Бот запущен (polling)!")
+        app.run_polling()
 
 if __name__ == "__main__":
     main()
