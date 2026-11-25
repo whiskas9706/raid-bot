@@ -239,72 +239,47 @@ async def raided(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /МЕМАСИК
 # ==========================
 
-import os
-import random
 import requests
+from telegram import Update
+from telegram.ext import ContextTypes, CommandHandler
 
-# Токен берём из окружения (в Render → Environment переменная VK_TOKEN),
-# локально можно вписать в кавычки
-VK_TOKEN = os.environ.get("VK_TOKEN", "")
-VK_GROUP_ID = -29369324   # id паблика со знаком минус, как число
-VK_VERSION = "5.199"
-
-
-def vk_call(method, **params):
-    """Единый запрос к VK API с понятной ошибкой."""
-    params.update({
-        "access_token": VK_TOKEN,
-        "v": VK_VERSION,
-    })
-    response = requests.get(
-        f"https://api.vk.com/method/{method}",
-        params=params,
-        timeout=10,
-    )
-    data = response.json()
-
-    if "error" in data:
-        raise Exception(
-            f"VK {data['error']['error_code']}: {data['error']['error_msg']}"
-        )
-    return data["response"]
-
+REDDIT_HEADERS = {"User-Agent": "MemeBot/1.0"}
 
 def get_meme_url():
-    # Берём посты со стены сообщества и вытаскиваем из них фото
-    posts = vk_call(
-        "wall.get",
-        owner_id=VK_GROUP_ID,
-        count=100,
-        filter="all",
-    )["items"]
+    # Пробуем готовый API мемов
+    try:
+        data = requests.get("https://meme-api.com/gimme", timeout=10).json()
+        if data.get("url"):
+            return data["url"]
+    except Exception:
+        pass
 
-    photos = []
+    # Запасной путь: Reddit r/memes
+    posts = requests.get(
+        "https://www.reddit.com/r/memes/hot.json?limit=50",
+        headers=REDDIT_HEADERS,
+        timeout=10,
+    ).json()["data"]["children"]
 
-    for post in posts:
-        attachments = post.get("attachments") or []
-        for att in attachments:
-            if att.get("type") == "photo":
-                photos.append(att["photo"])
-
-    if not photos:
-        raise Exception("На стене сообщества нет ни одного фото")
-
-    photo = random.choice(photos)
-    best = max(photo["sizes"], key=lambda s: s["width"] * s["height"])
-    return best["url"]
+    images = [
+        p["data"]["url"]
+        for p in posts
+        if p["data"].get("post_hint") == "image"
+        and not p["data"].get("over_18", False)
+    ]
+    return random.choice(images)
 
 
 async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         url = get_meme_url()
-        await update.message.reply_photo(
-            photo=url,
-            caption="😂 Случайный мем"
-        )
+        await update.message.reply_photo(photo=url, caption="😂 Мем")
     except Exception as e:
-        await update.message.reply_text(
-            f"Не удалось получить мем: {e} 😢"
+        await update.message.reply_text(f"Не удалось получить мем: {e} 😢")
+
+
+# там, где у тебя регистрируются хендлеры:
+app.add_handler(CommandHandler("мемасик", meme))
         )
 # ==========================
 # /СТАРТ
