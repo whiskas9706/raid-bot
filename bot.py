@@ -239,69 +239,84 @@ async def raided(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /МЕМАСИК
 # ==========================
 
-async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Настройки VK API
-    VK_TOKEN = "vk1.a.IKoy-BdLbQ5tH6P0hT_36oJ6cKgls6WL5tAFXdoaTGjH7vcWLwPFiKjsWFV0VA7vLUAi-A8aT8Tn2kziPLn18alVxQl1svzEcYR_b4mXOinEHHKFg05UByy7Ire4ZGosz27amgtqan6H6RCZTYqchuJ8aNxOWbQaLWS-8InTEjtgnTl34S5F3piimSdSpqk_E1ZTseEqyalkjJk43jEr1Q"  # замените на ваш токен
-    GROUP_ID = "-29369324"  # ID паблика (с минусом для сообществ)
-    VERSION = "5.131"
+import os
+import random
+import requests
+
+# Токен берём из окружения (в Render → Environment переменная VK_TOKEN),
+# локально можно вписать в кавычки
+VK_TOKEN = os.environ.get("VK_TOKEN", "")
+VK_GROUP_ID = -29369324   # id паблика со знаком минус, как число
+VK_VERSION = "5.199"
+
+
+def vk_call(method, **params):
+    """Единый запрос к VK API с понятной ошибкой."""
+    params.update({
+        "access_token": VK_TOKEN,
+        "v": VK_VERSION,
+    })
+    response = requests.get(
+        f"https://api.vk.com/method/{method}",
+        params=params,
+        timeout=10,
+    )
+    data = response.json()
+
+    if "error" in data:
+        raise Exception(
+            f"VK {data['error']['error_code']}: {data['error']['error_msg']}"
+        )
+    return data["response"]
+
+
+def get_meme_url():
+    # Сначала пробуем обычные альбомы группы,
+    # если их нет — берём фото со стены (альбом "wall")
+    items = []
 
     try:
-        # Получаем список альбомов группы
-        albums_response = requests.get(
-            "https://api.vk.com/method/photos.getAlbums",
-            params={
-                "owner_id": GROUP_ID,
-                "access_token": VK_TOKEN,
-                "v": VERSION
-            }
-        )
-        albums_data = albums_response.json()
+        albums = vk_call("photos.getAlbums", owner_id=VK_GROUP_ID)["items"]
+        if albums:
+            album = random.choice(albums)
+            items = vk_call(
+                "photos.get",
+                owner_id=VK_GROUP_ID,
+                album_id=album["id"],
+                count=1000,
+                rev=1,
+            )["items"]
+    except Exception as e:
+        print("Альбомы недоступны, беру со стены:", e)
 
-        if "response" not in albums_data:
-            raise Exception("Ошибка при получении альбомов")
+    if not items:
+        items = vk_call(
+            "photos.getWallPhotos",
+            owner_id=VK_GROUP_ID,
+            count=1000,
+            rev=1,   # среди всех, не только последние
+        )["items"]
 
-        # Выбираем случайный альбом
-        albums = albums_data["response"]["items"]
-        random_album = random.choice(albums)
-        album_id = random_album["id"]
+    if not items:
+        raise Exception("В сообществе не нашлось ни одного фото")
 
-        # Получаем фото из случайного альбома
-        photos_response = requests.get(
-            "https://api.vk.com/method/photos.get",
-            params={
-                "owner_id": GROUP_ID,
-                "album_id": album_id,
-                "count": 10,  # берём 10 фото для разнообразия
-                "access_token": VK_TOKEN,
-                "v": VERSION
-            }
-        )
-        photos_data = photos_response.json()
+    photo = random.choice(items)
+    # Самый большой из доступных размеров
+    best = max(photo["sizes"], key=lambda s: s["width"] * s["height"])
+    return best["url"]
 
-        if "response" not in photos_data or not photos_data["response"]["items"]:
-            raise Exception("Нет фото в альбоме")
 
-        # Выбираем случайное фото
-        photos = photos_data["response"]["items"]
-        random_photo = random.choice(photos)
-
-        # Находим самую качественную ссылку на фото
-        max_size_url = max(
-            random_photo["sizes"],
-            key=lambda size: size["width"] * size["height"]
-        )["url"]
-
+async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        url = get_meme_url()
         await update.message.reply_photo(
-            photo=max_size_url,
-            caption="😂 Случайный  мем"
+            photo=url,
+            caption="😂 Случайный мем"
         )
-
     except Exception as e:
         await update.message.reply_text(
-            f"Не удалось получить мем: {str(e)} 😢"
+            f"Не удалось получить мем: {e} 😢"
         )
-
-
 # ==========================
 # /СТАРТ
 # ==========================
