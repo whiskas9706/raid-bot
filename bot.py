@@ -240,23 +240,65 @@ async def raided(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==========================
 
 async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Настройки VK API
+    VK_TOKEN = "vk1.a.IKoy-BdLbQ5tH6P0hT_36oJ6cKgls6WL5tAFXdoaTGjH7vcWLwPFiKjsWFV0VA7vLUAi-A8aT8Tn2kziPLn18alVxQl1svzEcYR_b4mXOinEHHKFg05UByy7Ire4ZGosz27amgtqan6H6RCZTYqchuJ8aNxOWbQaLWS-8InTEjtgnTl34S5F3piimSdSpqk_E1ZTseEqyalkjJk43jEr1Q"  # замените на ваш токен
+    GROUP_ID = "-29369324"  # ID паблика (с минусом для сообществ)
+    VERSION = "5.131"
 
     try:
-        response = requests.get(
-            "https://meme-api.com/gimme",
-            timeout=10
+        # Получаем список альбомов группы
+        albums_response = requests.get(
+            "https://api.vk.com/method/photos.getAlbums",
+            params={
+                "owner_id": GROUP_ID,
+                "access_token": VK_TOKEN,
+                "v": VERSION
+            }
         )
+        albums_data = albums_response.json()
 
-        data = response.json()
+        if "response" not in albums_data:
+            raise Exception("Ошибка при получении альбомов")
+
+        # Выбираем случайный альбом
+        albums = albums_data["response"]["items"]
+        random_album = random.choice(albums)
+        album_id = random_album["id"]
+
+        # Получаем фото из случайного альбома
+        photos_response = requests.get(
+            "https://api.vk.com/method/photos.get",
+            params={
+                "owner_id": GROUP_ID,
+                "album_id": album_id,
+                "count": 10,  # берём 10 фото для разнообразия
+                "access_token": VK_TOKEN,
+                "v": VERSION
+            }
+        )
+        photos_data = photos_response.json()
+
+        if "response" not in photos_data or not photos_data["response"]["items"]:
+            raise Exception("Нет фото в альбоме")
+
+        # Выбираем случайное фото
+        photos = photos_data["response"]["items"]
+        random_photo = random.choice(photos)
+
+        # Находим самую качественную ссылку на фото
+        max_size_url = max(
+            random_photo["sizes"],
+            key=lambda size: size["width"] * size["height"]
+        )["url"]
 
         await update.message.reply_photo(
-            photo=data["url"],
-            caption="😂 Случайный мем"
+            photo=max_size_url,
+            caption="😂 Случайный  мем"
         )
 
-    except Exception:
+    except Exception as e:
         await update.message.reply_text(
-            "Не удалось получить мем 😢"
+            f"Не удалось получить мем: {str(e)} 😢"
         )
 
 
