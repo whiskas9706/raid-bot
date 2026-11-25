@@ -271,37 +271,26 @@ def vk_call(method, **params):
 
 
 def get_meme_url():
-    items = []
+    # Берём посты со стены сообщества и вытаскиваем из них фото
+    posts = vk_call(
+        "wall.get",
+        owner_id=VK_GROUP_ID,
+        count=100,
+        filter="all",
+    )["items"]
 
-    # Пробуем обычные альбомы группы
-    try:
-        albums = vk_call("photos.getAlbums", owner_id=VK_GROUP_ID)["items"]
-        if albums:
-            album = random.choice(albums)
-            items = vk_call(
-                "photos.get",
-                owner_id=VK_GROUP_ID,
-                album_id=album["id"],
-                count=1000,
-                rev=1,
-            )["items"]
-    except Exception as e:
-        print("Альбомы недоступны, беру со стены:", e)
+    photos = []
 
-    # Запасной путь: фото со стены сообщества
-    if not items:
-        items = vk_call(
-            "photos.get",
-            owner_id=VK_GROUP_ID,
-            album_id="wall",
-            count=1000,
-            rev=1,
-        )["items"]
+    for post in posts:
+        attachments = post.get("attachments") or []
+        for att in attachments:
+            if att.get("type") == "photo":
+                photos.append(att["photo"])
 
-    if not items:
-        raise Exception("В сообществе не нашлось ни одного фото")
+    if not photos:
+        raise Exception("На стене сообщества нет ни одного фото")
 
-    photo = random.choice(items)
+    photo = random.choice(photos)
     best = max(photo["sizes"], key=lambda s: s["width"] * s["height"])
     return best["url"]
 
