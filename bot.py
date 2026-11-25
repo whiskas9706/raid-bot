@@ -271,10 +271,9 @@ def vk_call(method, **params):
 
 
 def get_meme_url():
-    # Сначала пробуем обычные альбомы группы,
-    # если их нет — берём фото со стены (альбом "wall")
     items = []
 
+    # Пробуем обычные альбомы группы
     try:
         albums = vk_call("photos.getAlbums", owner_id=VK_GROUP_ID)["items"]
         if albums:
@@ -289,19 +288,20 @@ def get_meme_url():
     except Exception as e:
         print("Альбомы недоступны, беру со стены:", e)
 
+    # Запасной путь: фото со стены сообщества
     if not items:
         items = vk_call(
-            "photos.getWallPhotos",
+            "photos.get",
             owner_id=VK_GROUP_ID,
+            album_id="wall",
             count=1000,
-            rev=1,   # среди всех, не только последние
+            rev=1,
         )["items"]
 
     if not items:
         raise Exception("В сообществе не нашлось ни одного фото")
 
     photo = random.choice(items)
-    # Самый большой из доступных размеров
     best = max(photo["sizes"], key=lambda s: s["width"] * s["height"])
     return best["url"]
 
