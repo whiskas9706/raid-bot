@@ -281,7 +281,7 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # там, где у тебя регистрируются хендлеры:
 app.add_handler(CommandHandler("мемасик", meme))
 
-    )
+    
 
 # ==========================
 # /СТАРТ
