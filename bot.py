@@ -239,50 +239,34 @@ async def raided(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # /МЕМАСИК
 # ==========================
 
-import requests
-from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
-
-REDDIT_HEADERS = {"User-Agent": "MemeBot/1.0"}
-
-def get_meme_url():
-    # Пробуем готовый API мемов
-    try:
-        data = requests.get("https://meme-api.com/gimme", timeout=10).json()
-        if data.get("url"):
-            return data["url"]
-    except Exception:
-        pass
-
-    # Запасной путь: Reddit r/memes
-    posts = requests.get(
-        "https://www.reddit.com/r/memes/hot.json?limit=50",
-        headers=REDDIT_HEADERS,
-        timeout=10,
-    ).json()["data"]["children"]
-
-    images = [
-        p["data"]["url"]
-        for p in posts
-        if p["data"].get("post_hint") == "image"
-        and not p["data"].get("over_18", False)
-    ]
-    return random.choice(images)
-
 
 async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        url = get_meme_url()
-        await update.message.reply_photo(photo=url, caption="😂 Мем")
+        # Запрос к API с русскими мемами
+        response = requests.get(
+            "https://meme-api.com/gimme/ru",  # прямой запрос русских мемов
+            timeout=10
+        )
+        response.raise_for_status()  # проверяем HTTP‑статус
+
+        data = response.json()
+
+        # Проверяем наличие URL изображения
+        if "url" not in data:
+            raise ValueError("В ответе API отсутствует поле 'url'")
+
+
+        await update.message.reply_photo(
+            photo=data["url"],
+            caption="😂 Случайный русский мем"
+        )
+
+    except requests.exceptions.RequestException as e:
+        await update.message.reply_text("Ошибка сети: не удалось получить мем 😢")
+    except ValueError as e:
+        await update.message.reply_text(f"Ошибка данных: {str(e)}")
     except Exception as e:
-        await update.message.reply_text(f"Не удалось получить мем: {e} 😢")
-
-
-# там, где у тебя регистрируются хендлеры:
-app.add_handler(CommandHandler("/memas", meme))
-
-    
-
+        await update.message.reply_text("Неизвестная ошибка при получении мема 😢")
 # ==========================
 # /СТАРТ
 # ==========================
